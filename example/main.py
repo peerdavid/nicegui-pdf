@@ -51,7 +51,7 @@ with ui.card().classes("w-full"), ui.row().classes("w-4/6 no-wrap mx-auto"):
         
         # Load the PDF component
         path = app.add_static_file(local_file="example/paper.pdf")
-        PdfViewer(path).classes("w-full").style(
+        pdf = PdfViewer(path).classes("w-full").style(
             "border: solid 1px gray;"
         ).bind_current_page(
             state
@@ -62,6 +62,8 @@ with ui.card().classes("w-full"), ui.row().classes("w-4/6 no-wrap mx-auto"):
         ).bind_selected_text_to(
             state
         )
+
+        ui.button("Refresh PDF", on_click=pdf.refresh)
 
     with ui.column().classes("w-1/2 justify-center mx-auto no-wrap"):
         ui.label("Selected text").style("font-weight: bold;").classes("mx-auto")

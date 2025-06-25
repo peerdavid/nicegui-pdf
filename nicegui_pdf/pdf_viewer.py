@@ -39,6 +39,14 @@ class PdfViewer(Element, component="pdf_viewer.js"):
         self._load_worker("pdf.worker.min.js")
 
     #
+    # General functions
+    #
+    def refresh(self) -> Self:
+        """Refresh the PDF viewer."""
+        self.run_method("refresh")
+        return self
+
+    #
     # Bindables
     #
     def bind_current_page(

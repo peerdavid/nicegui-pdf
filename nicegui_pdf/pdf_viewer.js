@@ -62,6 +62,10 @@ export default {
           this.$emit("change_current_page", this.current_page);
         }
       },
+
+      refresh() {
+        this._showPage();
+      },
       
 
       /*
@@ -93,73 +97,77 @@ export default {
       },
 
       _showPage() {
-    var self = this;
-    if (self.is_rendering) {
-        console.log("Already rendering. Skipping page " + self.current_page + "...");
-        return;
-    }
-    
-    self.is_rendering = true;
-    self.$emit("change_is_rendering", self.is_rendering);
-  
-    // Fetch the page
-    self.pdf_doc.getPage(self.current_page).then(function (page) {
-        var width = $("#" + self.getPdfContentId()).width();
+        var self = this;
+        if (self.is_rendering) {
+            console.log("Already rendering. Skipping page " + self.current_page + "...");
+            return;
+        }
+        
+        self.is_rendering = true;
+        self.$emit("change_is_rendering", self.is_rendering);
+      
+        // Fetch the page
+        self.pdf_doc.getPage(self.current_page).then(function (page) {
+            var width = $("#" + self.getPdfContentId()).width();
 
-        self.canvas.width = width;
+            self.canvas.width = width;
 
-        let viewport = page.getViewport({
-            scale: 1,
-        });
-  
-        let scale = self.canvas.width / viewport.width;
-        viewport = page.getViewport({
-            scale: scale
-        });
-  
-        self.canvas.height = viewport.height;
-        var renderContext = {
-            canvasContext: self.canvas_ctx,
-            viewport: viewport
-        };
-  
-        page.render(renderContext).promise.then(function () {
-            return page.getTextContent();
-        }).then(function (textContent) {
-            var canvas_offset = $("#" + self.getPdfCanvasId()).offset();
-            var cumulative_offset = { left: 0, top: 0 };
-
-            // Traverse all ancestor q-cards and sum their offsets
-            $("#" + self.getPdfContentId()).parents('.q-card').each(function () {
-                var card_offset = $(this).offset();
-                if (card_offset) {
-                    cumulative_offset.left += card_offset.left;
-                    cumulative_offset.top += card_offset.top;
-                }
+            let viewport = page.getViewport({
+                scale: 1,
             });
-
-            $("#" + self.getTextLayerId()).html('');
-            document.getElementById(self.getTextLayerId()).style.setProperty('--scale-factor', viewport.scale);
-
-            // Adjust text layer position relative to cumulative q-card offsets
-            $("#" + self.getTextLayerId()).css({ 
-                left: (canvas_offset.left - cumulative_offset.left) + 'px', 
-                top: (canvas_offset.top - cumulative_offset.top) + 'px' 
+      
+            let scale = self.canvas.width / viewport.width;
+            viewport = page.getViewport({
+                scale: scale
             });
+      
+            self.canvas.height = viewport.height;
+            var renderContext = {
+                canvasContext: self.canvas_ctx,
+                viewport: viewport
+            };
+      
+            page.render(renderContext).promise.then(function () {
+                return page.getTextContent();
+            }).then(function (textContent) {
+                var canvas_offset = $("#" + self.getPdfCanvasId()).offset();
+                var cumulative_offset = { left: 0, top: 0 };
 
-            PDFJS.renderTextLayer({
-                textContentSource: textContent,
-                container: $("#" + self.getTextLayerId()).get(0),
-                viewport: viewport,
-                textDivs: []
+                // Traverse all ancestor elements with position styles affecting layout
+                $("#" + self.getPdfContentId()).parents().each(function () {
+                    var element = $(this);
+                    var position = element.css("position");
+                    if (position === "relative" || position === "absolute" || position === "fixed") {
+                        var element_offset = element.offset();
+                        if (element_offset) {
+                            cumulative_offset.left += element_offset.left;
+                            cumulative_offset.top += element_offset.top;
+                        }
+                    }
+                });
+
+                $("#" + self.getTextLayerId()).html('');
+                document.getElementById(self.getTextLayerId()).style.setProperty('--scale-factor', viewport.scale);
+
+                // Adjust text layer position relative to cumulative q-card offsets
+                $("#" + self.getTextLayerId()).css({ 
+                    left: (canvas_offset.left - cumulative_offset.left) + 'px', 
+                    top: (canvas_offset.top - cumulative_offset.top) + 'px' 
+                });
+
+                PDFJS.renderTextLayer({
+                    textContentSource: textContent,
+                    container: $("#" + self.getTextLayerId()).get(0),
+                    viewport: viewport,
+                    textDivs: []
+                });
+
+            }).finally(function () {
+                self.is_rendering = false;
+                self.$emit("change_is_rendering", self.is_rendering);
+                self.$emit("change_current_page", self.current_page);
             });
-
-        }).finally(function () {
-            self.is_rendering = false;
-            self.$emit("change_is_rendering", self.is_rendering);
-            self.$emit("change_current_page", self.current_page);
         });
-    });
-}
+      }
     },
   };
