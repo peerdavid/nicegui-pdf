@@ -1,6 +1,6 @@
 [project]
 name = "nicegui-pdf"
-version = "0.0.6"
+version = "0.0.7"
 description = "A PDF viewer for nicegui based on pdf.js"
 authors = [
   { name="David Peer", email="david.peer@outlook.com" },
