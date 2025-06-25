@@ -161,7 +161,7 @@ class PdfViewer(Element, component="pdf_viewer.js"):
 
     def _load_css_file(self, resource: str):
         css_content = self._load_lib_file(resource)
-        ui.add_css(css_content)
+        ui.add_body_html(f"\n<style>\n{css_content}\n</style>\n")
 
     def _load_js_file(self, resource: str):
         js_content = self._load_lib_file(resource)

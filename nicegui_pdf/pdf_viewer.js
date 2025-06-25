@@ -93,70 +93,73 @@ export default {
       },
 
       _showPage() {
-        var self = this;
-        if (self.is_rendering) {
-            console.log("Already rendering. Skipping page " + self.current_page + "...");
-            return;
-        }
-        
-        self.is_rendering = true;
-        self.$emit("change_is_rendering", self.is_rendering);
-      
-        // Fetch the page
-        self.pdf_doc.getPage(self.current_page).then(function (page) {
-            // Make it slightly smaller than the parent container to ensure
-            // the parent is always larger (e.g. a border is always shown)
-            var width = $("#" + self.getPdfContentId()).width();
+    var self = this;
+    if (self.is_rendering) {
+        console.log("Already rendering. Skipping page " + self.current_page + "...");
+        return;
+    }
+    
+    self.is_rendering = true;
+    self.$emit("change_is_rendering", self.is_rendering);
+  
+    // Fetch the page
+    self.pdf_doc.getPage(self.current_page).then(function (page) {
+        var width = $("#" + self.getPdfContentId()).width();
 
-            // set the canvas width to the width of the parent container
-            self.canvas.width = width;
+        self.canvas.width = width;
 
-            // Get viewport of the page at required scale
-            let viewport = page.getViewport({
-                scale: 1,
-            });
-      
-            // As the canvas is of a fixed width we need to set the scale of the viewport accordingly
-            let scale = self.canvas.width / viewport.width;
-            viewport = page.getViewport({
-                scale: scale
-            });
-      
-            // Set canvas height
-            self.canvas.height = viewport.height;
-            var renderContext = {
-                canvasContext: self.canvas_ctx,
-                viewport: viewport
-            };
-      
-            // Render the page contents in the canvas
-            page.render(renderContext).promise.then(function () {
-                return page.getTextContent();
-            }).then(function (textContent) {
-                // Get canvas offset
-                var canvas_offset = $("#" + self.getPdfCanvasId()).offset();
-      
-                // Clear HTML for text layer
-                $("#" + self.getTextLayerId()).html('');
-      
-                // Assign the CSS created to the text-layer element
-                document.getElementById(self.getTextLayerId()).style.setProperty('--scale-factor', viewport.scale);
-                $("#" + self.getTextLayerId()).css({ left: canvas_offset.left + 'px', top: canvas_offset.top + 'px'});
-      
-                // Pass the data to the method for rendering of text over the pdf canvas.
-                PDFJS.renderTextLayer({
-                    textContentSource: textContent,
-                    container: $("#" + self.getTextLayerId()).get(0),
-                    viewport: viewport,
-                    textDivs: []
-                });
+        let viewport = page.getViewport({
+            scale: 1,
+        });
+  
+        let scale = self.canvas.width / viewport.width;
+        viewport = page.getViewport({
+            scale: scale
+        });
+  
+        self.canvas.height = viewport.height;
+        var renderContext = {
+            canvasContext: self.canvas_ctx,
+            viewport: viewport
+        };
+  
+        page.render(renderContext).promise.then(function () {
+            return page.getTextContent();
+        }).then(function (textContent) {
+            var canvas_offset = $("#" + self.getPdfCanvasId()).offset();
+            var cumulative_offset = { left: 0, top: 0 };
 
-            }).finally(function () {
-                self.is_rendering = false;
-                self.$emit("change_is_rendering", self.is_rendering);
-                self.$emit("change_current_page", self.current_page);
+            // Traverse all ancestor q-cards and sum their offsets
+            $("#" + self.getPdfContentId()).parents('.q-card').each(function () {
+                var card_offset = $(this).offset();
+                if (card_offset) {
+                    cumulative_offset.left += card_offset.left;
+                    cumulative_offset.top += card_offset.top;
+                }
             });
-        })
-      }
+
+            $("#" + self.getTextLayerId()).html('');
+            document.getElementById(self.getTextLayerId()).style.setProperty('--scale-factor', viewport.scale);
+
+            // Adjust text layer position relative to cumulative q-card offsets
+            $("#" + self.getTextLayerId()).css({ 
+                left: (canvas_offset.left - cumulative_offset.left) + 'px', 
+                top: (canvas_offset.top - cumulative_offset.top) + 'px' 
+            });
+
+            PDFJS.renderTextLayer({
+                textContentSource: textContent,
+                container: $("#" + self.getTextLayerId()).get(0),
+                viewport: viewport,
+                textDivs: []
+            });
+
+        }).finally(function () {
+            self.is_rendering = false;
+            self.$emit("change_is_rendering", self.is_rendering);
+            self.$emit("change_current_page", self.current_page);
+        });
+    });
+}
     },
   };
